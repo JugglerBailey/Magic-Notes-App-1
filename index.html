@@ -38,21 +38,7 @@
     display:flex; align-items:center; gap:4px;
     padding:6px 10px 6px 2px; position:relative;
   }
-  .nav-back-text { position:relative; display:inline-block; }
-  /* The amber dot that appears inside the "o" of Notes */
-  .o-dot {
-    position:absolute;
-    /* centre it roughly over the 'o' in "Notes" - 'N' is ~8px, 'o' centre ~14px */
-    left:14px; top:50%; transform:translate(-50%,-50%);
-    width:5px; height:5px;
-    background:var(--gold);
-    border-radius:50%;
-    opacity:0;
-    transition:opacity 0.2s;
-    pointer-events:none;
-    box-shadow:0 0 6px 2px rgba(245,166,35,.7);
-  }
-  .o-dot.show { opacity:1; }
+
 
   .nav-center { display:flex; align-items:center; gap:16px; }
   .nav-btn { background:none; border:none; padding:6px; cursor:pointer; display:flex; align-items:center; }
@@ -108,25 +94,7 @@
   }
   .toolbar button { background:none; border:none; padding:4px 6px; cursor:pointer; }
 
-  /* ── TAP OVERLAY ── */
-  .tap-overlay {
-    position:fixed; inset:0; display:none;
-    align-items:center; justify-content:center; z-index:40;
-  }
-  .tap-overlay.visible { display:flex; }
-  .tap-pill {
-    background:rgba(245,166,35,.13);
-    border:1px solid rgba(245,166,35,.4);
-    border-radius:30px; padding:11px 24px;
-    color:var(--gold); font-size:15px; letter-spacing:.2px;
-    backdrop-filter:blur(10px);
-    animation:pillPulse 1.8s ease-in-out infinite;
-    margin-top:80px;
-  }
-  @keyframes pillPulse {
-    0%,100%{ opacity:.75; transform:scale(1); }
-    50%{ opacity:1; transform:scale(1.04); }
-  }
+
 
   /* ── MAGIC FADE ── */
   .magic-word { display:inline; animation:magicFade 1.5s ease-out forwards; }
@@ -252,7 +220,6 @@
     </svg>
     <span class="nav-back-text" id="navBackText">
       Notes
-      <span class="o-dot" id="oDot"></span>
     </span>
   </div>
 
@@ -305,12 +272,21 @@
       <text x="0" y="16" font-family="-apple-system,sans-serif" font-size="17" fill="#f5a623" font-weight="500">Aa</text>
     </svg>
   </button>
-  <button aria-label="Checklist">
+  <button aria-label="List" id="listIconBtn" style="position:relative; display:flex; align-items:center; justify-content:center;">
     <svg width="24" height="22" viewBox="0 0 24 22" fill="none">
       <circle cx="5" cy="11" r="4.5" stroke="#f5a623" stroke-width="1.5"/>
-      <path d="M3 11l1.5 1.8L7.2 8.5" stroke="#f5a623" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
       <path d="M12 8h10M12 14h10" stroke="#f5a623" stroke-width="1.5" stroke-linecap="round"/>
     </svg>
+    <span id="toolbarDot" style="
+      position:absolute;
+      left:11px; top:50%; transform:translate(-50%,-50%);
+      width:3px; height:3px;
+      background:#f5a623;
+      border-radius:50%;
+      opacity:0;
+      transition:opacity 0.15s;
+      pointer-events:none;
+    "></span>
   </button>
   <button aria-label="Table">
     <svg width="24" height="22" viewBox="0 0 24 22" fill="none">
@@ -323,10 +299,14 @@
       <path d="M20 11l-9 9a6 6 0 01-8.5-8.5L11 3a4 4 0 015.5 5.5L8 17a2 2 0 01-2.8-2.8L13 7" stroke="#f5a623" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
     </svg>
   </button>
-  <button aria-label="Draw">
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+  <!-- ACTIVATE TOGGLE: circle with diagonal, tap to add cross -->
+  <button aria-label="Activate" id="activateBtn" style="position:relative; display:flex; align-items:center; justify-content:center;">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" id="activateSvg">
       <circle cx="12" cy="12" r="9.5" stroke="#f5a623" stroke-width="1.5"/>
-      <path d="M8 15l1.5-5 3.5 3.5 2.5-6" stroke="#f5a623" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <!-- first diagonal line always visible -->
+      <line x1="7" y1="7" x2="17" y2="17" stroke="#f5a623" stroke-width="1.5" stroke-linecap="round"/>
+      <!-- second diagonal line: hidden until activated -->
+      <line id="activateLine2" x1="17" y1="7" x2="7" y2="17" stroke="#f5a623" stroke-width="1.5" stroke-linecap="round" opacity="0" style="transition:opacity 0.2s;"/>
     </svg>
   </button>
   <button aria-label="New note" onclick="activateInput()">
@@ -340,10 +320,7 @@
 <!-- Hidden input -->
 <input id="real-input" type="text" autocomplete="off" autocorrect="off" autocapitalize="sentences" spellcheck="false">
 
-<!-- Tap overlay -->
-<div class="tap-overlay" id="tapOverlay">
-  <div class="tap-pill">✨ Tap to begin the magic</div>
-</div>
+
 
 <!-- Sparkle layer -->
 <div id="sparkle-layer"></div>
@@ -376,71 +353,98 @@
 </div>
 
 <script>
-/* ── State ── */
-const realInput       = document.getElementById('real-input');
-const textLayer       = document.getElementById('textLayer');
-const liveTyping      = document.getElementById('liveTyping');
-const placeholder     = document.getElementById('placeholder');
-const tapOverlay      = document.getElementById('tapOverlay');
-const sparkleLayer    = document.getElementById('sparkle-layer');
-const content         = document.getElementById('content');
-const oDot            = document.getElementById('oDot');
-const moreBtn         = document.getElementById('moreBtn');
-const settingsBackdrop= document.getElementById('settingsBackdrop');
-const settingsClose   = document.getElementById('settingsClose');
-const settingsSave    = document.getElementById('settingsSave');
-const durSlider       = document.getElementById('durSlider');
-const durVal          = document.getElementById('durVal');
-const endWordInput    = document.getElementById('endWordInput');
+const realInput        = document.getElementById('real-input');
+const textLayer        = document.getElementById('textLayer');
+const liveTyping       = document.getElementById('liveTyping');
+const placeholder      = document.getElementById('placeholder');
+const sparkleLayer     = document.getElementById('sparkle-layer');
+const content          = document.getElementById('content');
+const oDot             = document.getElementById('toolbarDot');
+const moreBtn          = document.getElementById('moreBtn');
+const settingsBackdrop = document.getElementById('settingsBackdrop');
+const settingsClose    = document.getElementById('settingsClose');
+const settingsSave     = document.getElementById('settingsSave');
+const durSlider        = document.getElementById('durSlider');
+const durVal           = document.getElementById('durVal');
+const endWordInput     = document.getElementById('endWordInput');
+const activateBtn      = document.getElementById('activateBtn');
+const activateLine2    = document.getElementById('activateLine2');
 
-let appState   = 'idle'; // idle | typing | waiting | countdown | fading
-let typedText  = '';
-let frozenEl   = null;
-let cdTimer    = null;
-let cdLeft     = 0;
+// States: idle | typing | waiting | countdown | fading | editing
+let appState    = 'idle';
+let typedText   = '';
+let frozenEl    = null;
+let cdTimer     = null;
+let cdLeft      = 0;
+let cdDuration  = 5;
+let endWord     = '';
+let magicActive = false; // whether the activate toggle is ON
 
-// Settings
-let cdDuration = 5;
-let endWord    = '';
+/* ── Activate toggle button ── */
+activateBtn.addEventListener('click', () => {
+  magicActive = !magicActive;
+  activateLine2.style.opacity = magicActive ? '1' : '0';
+});
 
-/* ── Clock ── */
-function tick() {
-  const d = new Date();
-  document.getElementById('clock').textContent =
-    `${d.getHours()}:${d.getMinutes().toString().padStart(2,'0')}`;
-}
-tick(); setInterval(tick, 15000);
-
-/* ── Open keyboard ── */
+/* ── Keyboard open ── */
 function activateInput() {
   if (appState === 'countdown' || appState === 'fading') return;
+  realInput.style.top = '50%';
   realInput.style.pointerEvents = 'auto';
   realInput.focus();
   realInput.style.pointerEvents = 'none';
 }
 
-/* ── Content tap ── */
-content.addEventListener('click', () => {
-  if (appState === 'waiting') { startCountdown(); return; }
-  if (appState === 'idle')    { activateInput(); }
-});
-tapOverlay.addEventListener('click', e => {
-  e.stopPropagation();
-  if (appState === 'waiting') startCountdown();
+/* ── Drag-to-scroll on content (only moves text vertically) ── */
+let dragStartY    = null;
+let dragStartScroll = null;
+let isDragging    = false;
+let dragMoved     = false;
+
+content.addEventListener('touchstart', (e) => {
+  dragStartY      = e.touches[0].clientY;
+  dragStartScroll = content.scrollTop;
+  isDragging      = true;
+  dragMoved       = false;
+}, { passive: true });
+
+content.addEventListener('touchmove', (e) => {
+  if (!isDragging) return;
+  const dy = dragStartY - e.touches[0].clientY;
+  if (Math.abs(dy) > 4) {
+    dragMoved = true;
+    content.scrollTop = dragStartScroll + dy;
+  }
+}, { passive: true });
+
+content.addEventListener('touchend', () => {
+  isDragging = false;
 });
 
-/* ── Done ── */
+/* ── Tapping the content area ── */
+content.addEventListener('click', (e) => {
+  // If a drag just happened, ignore the click
+  if (dragMoved) { dragMoved = false; return; }
+
+  if (appState === 'waiting' && magicActive) { startCountdown(); return; }
+  if (appState === 'idle' || appState === 'editing' || appState === 'waiting') {
+    activateInput();
+  }
+});
+
+/* ── Done button ── */
 document.getElementById('doneBtn').addEventListener('click', () => realInput.blur());
 
-/* ── Input focus ── */
+/* ── Input gains focus ── */
 realInput.addEventListener('focus', () => {
   if (appState === 'countdown' || appState === 'fading') return;
   appState = 'typing';
-  tapOverlay.classList.remove('visible');
   if (frozenEl) { frozenEl.remove(); frozenEl = null; }
+  typedText = realInput.value;
   renderLive();
 });
 
+/* ── User types ── */
 realInput.addEventListener('input', () => {
   typedText = realInput.value;
   placeholder.style.opacity = typedText.length ? '0' : '1';
@@ -450,21 +454,27 @@ realInput.addEventListener('input', () => {
 /* ── Keyboard dismissed ── */
 realInput.addEventListener('blur', () => {
   if (appState !== 'typing') return;
+
   if (!typedText.trim()) {
-    appState = 'idle'; typedText = ''; realInput.value = '';
-    liveTyping.innerHTML = ''; placeholder.style.opacity = '1';
+    appState = 'idle';
+    typedText = '';
+    realInput.value = '';
+    liveTyping.innerHTML = '';
+    placeholder.style.opacity = '1';
     return;
   }
+
+  // Go to waiting — but countdown only fires if magicActive is on
   appState = 'waiting';
   frozenEl = document.createElement('div');
-  frozenEl.className = 'frozen-text waiting';
+  frozenEl.className = 'frozen-text';
   frozenEl.textContent = typedText;
   textLayer.insertBefore(frozenEl, liveTyping);
   liveTyping.innerHTML = '';
   placeholder.style.opacity = '0';
-  tapOverlay.classList.add('visible');
 });
 
+/* ── Render live text + cursor ── */
 function renderLive() {
   liveTyping.innerHTML = '';
   if (appState !== 'typing') return;
@@ -475,27 +485,22 @@ function renderLive() {
   liveTyping.appendChild(cur);
 }
 
-/* ── Countdown ── */
+/* ── Start countdown ── */
 function startCountdown() {
-  if (appState !== 'waiting') return;
+  if (appState !== 'waiting' || !magicActive) return;
   appState = 'countdown';
-  tapOverlay.classList.remove('visible');
   if (frozenEl) frozenEl.classList.remove('waiting');
 
   cdLeft = cdDuration;
-  oDot.classList.remove('show');
+  oDot.style.opacity = '0';
 
   cdTimer = setInterval(() => {
     cdLeft--;
-
-    // Show dot inside the 'o' when 1 second remains
-    if (cdLeft === 1) {
-      oDot.classList.add('show');
+    if (cdLeft <= 1) {
+      oDot.style.opacity = '1';
     }
-
     if (cdLeft <= 0) {
       clearInterval(cdTimer);
-      oDot.classList.remove('show');
       doMagicFade();
     }
   }, 1000);
@@ -505,7 +510,6 @@ function startCountdown() {
 function doMagicFade() {
   appState = 'fading';
   const text = typedText;
-  typedText = ''; realInput.value = '';
   if (frozenEl) { frozenEl.remove(); frozenEl = null; }
 
   const line = document.createElement('div');
@@ -524,29 +528,39 @@ function doMagicFade() {
   spawnSparkles();
 
   const fadeDur = words.length * 70 + 1700;
-
   setTimeout(() => {
     line.remove();
+    oDot.style.opacity = '0';
 
-    // Show end word if set
     if (endWord.trim()) {
       const ew = document.createElement('div');
       ew.className = 'end-word-display';
       ew.textContent = endWord.trim();
       textLayer.insertBefore(ew, liveTyping);
-
-      // Remove end word after 3s
       setTimeout(() => {
-        ew.style.transition = 'opacity 0.8s';
-        ew.style.opacity = '0';
-        setTimeout(() => { ew.remove(); placeholder.style.opacity = '1'; }, 800);
-      }, 3000);
+        ew.remove();
+        restoreTextForEditing(endWord.trim());
+      }, 800);
     } else {
+      typedText = '';
+      realInput.value = '';
       placeholder.style.opacity = '1';
+      appState = 'idle';
     }
-
-    appState = 'idle';
   }, fadeDur);
+}
+
+/* ── Restore end word as editable text ── */
+function restoreTextForEditing(text) {
+  typedText = text;
+  realInput.value = text;
+  appState = 'editing';
+
+  frozenEl = document.createElement('div');
+  frozenEl.className = 'frozen-text';
+  frozenEl.textContent = text;
+  textLayer.insertBefore(frozenEl, liveTyping);
+  placeholder.style.opacity = '0';
 }
 
 /* ── Sparkles ── */
@@ -557,7 +571,7 @@ function spawnSparkles() {
       const s = document.createElement('div');
       s.className = 'sparkle';
       const x = rect.left + 16 + Math.random() * (rect.width - 32);
-      const y = rect.top + 8  + Math.random() * 110;
+      const y = rect.top + 8 + Math.random() * 110;
       const a = Math.random() * Math.PI * 2;
       const d = 28 + Math.random() * 58;
       s.style.cssText = `left:${x}px;top:${y}px;
@@ -570,37 +584,30 @@ function spawnSparkles() {
   }
 }
 
-/* ────────────────────────────────
-   SETTINGS — hold the ••• button
-   ──────────────────────────────── */
+/* ── Settings (hold ••• button) ── */
 let holdTimer = null;
 
 function openSettings() {
-  // Sync UI to current values
   durSlider.value = cdDuration;
   updateSliderStyle();
   durVal.textContent = `${cdDuration}s`;
   endWordInput.value = endWord;
   settingsBackdrop.classList.add('open');
 }
-
 function closeSettings() {
   settingsBackdrop.classList.remove('open');
   endWordInput.blur();
 }
 
-// Hold detection (500ms)
-moreBtn.addEventListener('mousedown',  () => { holdTimer = setTimeout(openSettings, 500); });
-moreBtn.addEventListener('touchstart', (e) => { e.preventDefault(); holdTimer = setTimeout(openSettings, 500); }, { passive:false });
-moreBtn.addEventListener('mouseup',    () => clearTimeout(holdTimer));
-moreBtn.addEventListener('mouseleave', () => clearTimeout(holdTimer));
-moreBtn.addEventListener('touchend',   () => clearTimeout(holdTimer));
-moreBtn.addEventListener('touchcancel',() => clearTimeout(holdTimer));
+moreBtn.addEventListener('mousedown',   () => { holdTimer = setTimeout(openSettings, 500); });
+moreBtn.addEventListener('touchstart',  (e) => { e.preventDefault(); holdTimer = setTimeout(openSettings, 500); }, { passive: false });
+moreBtn.addEventListener('mouseup',     () => clearTimeout(holdTimer));
+moreBtn.addEventListener('mouseleave',  () => clearTimeout(holdTimer));
+moreBtn.addEventListener('touchend',    () => clearTimeout(holdTimer));
+moreBtn.addEventListener('touchcancel', () => clearTimeout(holdTimer));
 
 settingsClose.addEventListener('click', closeSettings);
-settingsBackdrop.addEventListener('click', e => {
-  if (e.target === settingsBackdrop) closeSettings();
-});
+settingsBackdrop.addEventListener('click', e => { if (e.target === settingsBackdrop) closeSettings(); });
 
 settingsSave.addEventListener('click', () => {
   cdDuration = parseInt(durSlider.value, 10);
@@ -608,7 +615,6 @@ settingsSave.addEventListener('click', () => {
   closeSettings();
 });
 
-// Slider live update
 durSlider.addEventListener('input', () => {
   durVal.textContent = `${durSlider.value}s`;
   updateSliderStyle();
