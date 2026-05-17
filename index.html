@@ -15,45 +15,60 @@
   * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
   :root { --gold:#f5a623; }
 
-  body {
+  html, body {
+    height:100%; width:100%;
     background:#000; color:#fff;
     font-family:-apple-system,'SF Pro Text','Helvetica Neue',sans-serif;
-    height:100dvh; overflow:hidden;
-    display:flex; flex-direction:column;
+    overflow:hidden;
     user-select:none; -webkit-user-select:none;
-    position:fixed; width:100%; top:0; left:0;
   }
 
-
-
-  /* ── NAV BAR ── */
+  /* ── NAV BAR — floats at top ── */
   .nav-bar {
+    position:fixed;
+    top:0; left:0; right:0;
+    z-index:20;
     display:flex; align-items:center; justify-content:space-between;
-    padding: env(safe-area-inset-top, 14px) 8px 4px;
-    flex-shrink:0; min-height:44px;
-    background:#000; z-index:10;
+    padding: env(safe-area-inset-top, 14px) 8px 6px;
+    background:#000;
+    border-bottom:.5px solid rgba(255,255,255,.08);
   }
 
-  /* "Notes" label with dot-in-O */
   .nav-back {
     color:var(--gold); font-size:17px; font-weight:400;
     display:flex; align-items:center; gap:4px;
-    padding:6px 10px 6px 2px; position:relative;
+    padding:6px 10px 6px 2px;
   }
-
-
   .nav-center { display:flex; align-items:center; gap:16px; }
   .nav-btn { background:none; border:none; padding:6px; cursor:pointer; display:flex; align-items:center; }
   .nav-done { color:var(--gold); font-size:17px; font-weight:600; padding:6px 8px; cursor:pointer; }
 
-  /* ── CONTENT ── */
-  .content {
-    flex:1; overflow-y:scroll; -webkit-overflow-scrolling:touch;
-    overscroll-behavior:contain;
-    padding:4px 20px 12px; position:relative;
+  /* ── BOTTOM TOOLBAR — floats at bottom ── */
+  .toolbar {
+    position:fixed;
+    bottom:0; left:0; right:0;
+    z-index:20;
+    display:flex; align-items:center; justify-content:space-between;
+    padding:10px 18px calc(env(safe-area-inset-bottom, 0px) + 14px);
+    background:#000;
+    border-top:.5px solid rgba(255,255,255,.1);
   }
+  .toolbar button { background:none; border:none; padding:4px 6px; cursor:pointer; }
+
+  /* ── CONTENT — fills middle, scrolls independently ── */
+  .content {
+    position:fixed;
+    top:0; bottom:0; left:0; right:0;
+    /* will be set by JS once nav/toolbar heights are known */
+    overflow-y:scroll;
+    -webkit-overflow-scrolling:touch;
+    overscroll-behavior:contain;
+    padding:4px 20px 20px;
+  }
+
   .text-layer {
-    min-height:100%; position:relative;
+    min-height:calc(100vh * 1.5);
+    position:relative;
     font-size:16px; line-height:1.6; color:#fff; word-break:break-word;
   }
   .placeholder {
@@ -78,24 +93,15 @@
     50%{ text-shadow:0 0 14px rgba(245,166,35,.45); }
   }
 
-  /* end-word that appears after fade */
+  /* end-word */
   .end-word-display {
     font-size:16px; line-height:1.6; color:var(--gold);
     opacity:0; animation:endWordAppear 0.6s ease-out forwards;
   }
   @keyframes endWordAppear {
     0%  { opacity:0; transform:translateY(6px) scale(.95); filter:blur(4px); }
-    100%{ opacity:1; transform:translateY(0) scale(1);    filter:blur(0); }
+    100%{ opacity:1; transform:translateY(0) scale(1); filter:blur(0); }
   }
-
-  /* ── BOTTOM TOOLBAR ── */
-  .toolbar {
-    display:flex; align-items:center; justify-content:space-between;
-    padding:10px 18px calc(env(safe-area-inset-bottom, 0px) + 14px);
-    border-top:.5px solid rgba(255,255,255,.1);
-    background:#000; flex-shrink:0; z-index:10;
-  }
-  .toolbar button { background:none; border:none; padding:4px 6px; cursor:pointer; }
 
 
 
@@ -356,6 +362,19 @@
 </div>
 
 <script>
+/* ── Position content between nav and toolbar ── */
+function fixLayout() {
+  const nav     = document.querySelector('.nav-bar');
+  const toolbar = document.querySelector('.toolbar');
+  const content = document.getElementById('content');
+  const navH    = nav.getBoundingClientRect().height;
+  const tbH     = toolbar.getBoundingClientRect().height;
+  content.style.top    = navH + 'px';
+  content.style.bottom = tbH + 'px';
+}
+window.addEventListener('load', fixLayout);
+window.addEventListener('resize', fixLayout);
+setTimeout(fixLayout, 100);
 const realInput        = document.getElementById('real-input');
 const textLayer        = document.getElementById('textLayer');
 const liveTyping       = document.getElementById('liveTyping');
@@ -398,7 +417,13 @@ function activateInput() {
   realInput.style.pointerEvents = 'none';
 }
 
-/* ── Tapping the content area ── */
+/* ── Live bounce back to top on finger lift ── */
+content.addEventListener('touchend', () => {
+  if (content.scrollTop > 0) {
+    content.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+}, { passive: true });
+
 content.addEventListener('click', (e) => {
   if (appState === 'waiting' && magicActive) { startCountdown(); return; }
   if (appState === 'idle' || appState === 'editing' || appState === 'waiting') {
