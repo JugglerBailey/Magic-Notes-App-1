@@ -105,13 +105,67 @@
 
 
 
-  /* ── MAGIC FADE ── */
-  .magic-word { display:inline; animation:magicFade 1.5s ease-out forwards; }
+  /* ── MAGIC FADE (default) ── */
+  .magic-word { display:inline; }
+
+  /* 1. Blur fade (default) */
+  .tx-blur .magic-word { animation:magicFade var(--tx-dur,1.5s) ease-out forwards; }
   @keyframes magicFade {
     0%  { opacity:1; filter:blur(0); color:#fff; }
     20% { opacity:1; filter:blur(0); color:var(--gold); }
     60% { opacity:.5; filter:blur(4px); color:var(--gold); }
     100%{ opacity:0; filter:blur(12px); }
+  }
+
+  /* 2. Slide up */
+  .tx-slide .magic-word { animation:magicSlide var(--tx-dur,1.5s) ease-out forwards; }
+  @keyframes magicSlide {
+    0%  { opacity:1; transform:translateY(0); color:#fff; }
+    30% { opacity:1; transform:translateY(0); color:var(--gold); }
+    100%{ opacity:0; transform:translateY(-40px); }
+  }
+
+  /* 3. Shatter / scatter */
+  .tx-shatter .magic-word { animation:magicShatter var(--tx-dur,1.5s) ease-out forwards; }
+  @keyframes magicShatter {
+    0%  { opacity:1; transform:scale(1) rotate(0deg); color:#fff; }
+    20% { color:var(--gold); }
+    60% { opacity:.6; transform:scale(1.4) rotate(var(--rot,8deg)); }
+    100%{ opacity:0; transform:scale(0.2) rotate(var(--rot,8deg)) translateX(var(--sx,20px)); filter:blur(3px); }
+  }
+
+  /* 4. Sink / dissolve downward */
+  .tx-sink .magic-word { animation:magicSink var(--tx-dur,1.5s) ease-in forwards; }
+  @keyframes magicSink {
+    0%  { opacity:1; transform:translateY(0) scaleY(1); color:#fff; }
+    25% { color:var(--gold); }
+    70% { opacity:.4; transform:translateY(18px) scaleY(.5); }
+    100%{ opacity:0; transform:translateY(30px) scaleY(0); filter:blur(2px); }
+  }
+
+  /* 5. Flicker / glitch */
+  .tx-flicker .magic-word { animation:magicFlicker var(--tx-dur,1.5s) steps(1) forwards; }
+  @keyframes magicFlicker {
+    0%  { opacity:1; color:#fff; }
+    15% { opacity:0; }
+    20% { opacity:1; color:var(--gold); }
+    35% { opacity:0; }
+    40% { opacity:1; }
+    55% { opacity:0; }
+    60% { opacity:.6; filter:blur(1px); }
+    75% { opacity:0; }
+    85% { opacity:.3; filter:blur(3px); }
+    100%{ opacity:0; filter:blur(6px); }
+  }
+
+  /* 6. Typewriter erase */
+  .tx-erase .magic-word { animation:magicErase var(--tx-dur,1.5s) linear forwards; }
+  @keyframes magicErase {
+    0%  { opacity:1; color:#fff; text-decoration:none; }
+    20% { color:var(--gold); }
+    40% { text-decoration:line-through; text-decoration-color:var(--gold); }
+    80% { opacity:.3; letter-spacing:-.05em; }
+    100%{ opacity:0; letter-spacing:-.2em; filter:blur(2px); }
   }
 
   /* sparkles */
@@ -198,6 +252,21 @@
   }
   .end-word-input::placeholder { color:rgba(255,255,255,.3); }
   .end-word-input:focus { border-color:rgba(245,166,35,.5); }
+
+  /* Dropdown select */
+  .settings-select {
+    width:100%; background:rgba(255,255,255,.08);
+    border:1px solid rgba(255,255,255,.12);
+    border-radius:10px; padding:10px 14px;
+    color:#fff; font-size:16px; outline:none;
+    font-family:-apple-system,sans-serif;
+    -webkit-appearance:none; appearance:none;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23f5a623' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat:no-repeat;
+    background-position:right 14px center;
+    cursor:pointer;
+  }
+  .settings-select option { background:#2c2c2e; color:#fff; }
 
   .settings-save {
     margin:16px 20px;
@@ -351,6 +420,26 @@
     </div>
 
     <div class="settings-row">
+      <div class="settings-label">Transition Type</div>
+      <select class="settings-select" id="txTypeSelect">
+        <option value="blur">✦ Blur Fade (default)</option>
+        <option value="slide">↑ Slide Up</option>
+        <option value="shatter">✸ Shatter</option>
+        <option value="sink">↓ Sink Away</option>
+        <option value="flicker">⚡ Flicker</option>
+        <option value="erase">— Typewriter Erase</option>
+      </select>
+    </div>
+
+    <div class="settings-row">
+      <div class="settings-label">Transition Speed</div>
+      <div class="dur-row">
+        <input type="range" class="dur-slider" id="txDurSlider" min="3" max="30" value="15" step="1">
+        <span class="dur-val" id="txDurVal">1.5s</span>
+      </div>
+    </div>
+
+    <div class="settings-row">
       <div class="settings-label">End Word / Message</div>
       <input type="text" class="end-word-input" id="endWordInput"
         placeholder="e.g. Gone ✨ or Poof! or …"
@@ -390,6 +479,9 @@ const settingsClose    = document.getElementById('settingsClose');
 const settingsSave     = document.getElementById('settingsSave');
 const durSlider        = document.getElementById('durSlider');
 const durVal           = document.getElementById('durVal');
+const txTypeSelect     = document.getElementById('txTypeSelect');
+const txDurSlider      = document.getElementById('txDurSlider');
+const txDurVal         = document.getElementById('txDurVal');
 const endWordInput     = document.getElementById('endWordInput');
 const activateBtn      = document.getElementById('activateBtn');
 const activateLine2    = document.getElementById('activateLine2');
@@ -402,7 +494,9 @@ let cdTimer     = null;
 let cdLeft      = 0;
 let cdDuration  = 5;
 let endWord     = '';
-let magicActive = false; // whether the activate toggle is ON
+let magicActive = false;
+let txType      = 'blur';   // transition type
+let txDuration  = 1.5;      // transition duration in seconds
 
 /* ── Activate toggle button ── */
 activateBtn.addEventListener('click', () => {
@@ -518,13 +612,21 @@ function doMagicFade() {
   if (frozenEl) { frozenEl.remove(); frozenEl = null; }
 
   const line = document.createElement('div');
-  line.style.cssText = 'font-size:16px;line-height:1.6;word-break:break-word;white-space:pre-wrap;';
+  line.style.cssText = `font-size:16px;line-height:1.6;word-break:break-word;white-space:pre-wrap;--tx-dur:${txDuration}s;`;
+  line.classList.add(`tx-${txType}`);
 
   const words = text.split(/(\s+)/);
   words.forEach((w, i) => {
     const s = document.createElement('span');
     s.className = 'magic-word';
     s.textContent = w;
+    // shatter needs random rotation per word
+    if (txType === 'shatter') {
+      const rot = (Math.random() * 30 - 15) + 'deg';
+      const sx  = (Math.random() * 60 - 30) + 'px';
+      s.style.setProperty('--rot', rot);
+      s.style.setProperty('--sx', sx);
+    }
     s.style.animationDelay = `${i * 0.07}s`;
     line.appendChild(s);
   });
@@ -532,10 +634,13 @@ function doMagicFade() {
   textLayer.insertBefore(line, liveTyping);
   spawnSparkles();
 
-  const fadeDur = words.length * 70 + 1700;
+  const fadeDur = words.length * 70 + (txDuration * 1000) + 200;
   setTimeout(() => {
     line.remove();
     oDot.style.opacity = '0';
+    // Deactivate the toggle — resets to single diagonal line
+    magicActive = false;
+    activateLine2.style.opacity = '0';
 
     if (endWord.trim()) {
       const ew = document.createElement('div');
@@ -597,6 +702,10 @@ function openSettings() {
   durSlider.value = cdDuration;
   updateSliderStyle();
   durVal.textContent = `${cdDuration}s`;
+  txTypeSelect.value = txType;
+  txDurSlider.value = Math.round(txDuration * 10);
+  updateTxDurStyle();
+  txDurVal.textContent = `${txDuration}s`;
   endWordInput.value = endWord;
   settingsBackdrop.classList.add('open');
 }
@@ -617,6 +726,8 @@ settingsBackdrop.addEventListener('click', e => { if (e.target === settingsBackd
 
 settingsSave.addEventListener('click', () => {
   cdDuration = parseInt(durSlider.value, 10);
+  txType     = txTypeSelect.value;
+  txDuration = parseInt(txDurSlider.value, 10) / 10;
   endWord    = endWordInput.value;
   closeSettings();
 });
@@ -626,11 +737,22 @@ durSlider.addEventListener('input', () => {
   updateSliderStyle();
 });
 
+txDurSlider.addEventListener('input', () => {
+  txDurVal.textContent = `${(parseInt(txDurSlider.value)/10).toFixed(1)}s`;
+  updateTxDurStyle();
+});
+
 function updateSliderStyle() {
   const pct = ((durSlider.value - durSlider.min) / (durSlider.max - durSlider.min)) * 100;
   durSlider.style.setProperty('--pct', pct + '%');
 }
+
+function updateTxDurStyle() {
+  const pct = ((txDurSlider.value - txDurSlider.min) / (txDurSlider.max - txDurSlider.min)) * 100;
+  txDurSlider.style.setProperty('--pct', pct + '%');
+}
 updateSliderStyle();
+updateTxDurStyle();
 
 document.addEventListener('gesturestart', e => e.preventDefault());
 </script>
